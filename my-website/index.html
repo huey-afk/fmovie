@@ -173,5 +173,255 @@
 
         // --- CONSTANTS ---
         const TMDB_API_BASE = 'https://api.themoviedb.org/3';
-        const TMDB_IMAGE
+        const TMDB_IMAGE_BASE_POSTER = 'https://image.tmdb.org/t/p/w500';
+        const TMDB_IMAGE_BASE_BACKDROP = 'https://image.tmdb.org/t/p/original';
+
+        // --- DOM Elements ---
+        const mainView = document.getElementById('mainView');
+        const gridView = document.getElementById('gridView');
+        const detailsView = document.getElementById('detailsView');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const mobileSearchInput = document.getElementById('mobileSearchInput');
+        const contentGrid = document.getElementById('contentGrid');
+        const gridTitle = document.getElementById('gridTitle');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const movieRows = document.getElementById('movieRows');
+        const heroSection = document.getElementById('heroSection');
+        const heroTitle = document.getElementById('heroTitle');
+        const heroOverview = document.getElementById('heroOverview');
+        const trailerModal = document.getElementById('trailerModal');
+        const closeTrailerBtn = document.getElementById('closeTrailerBtn');
+        const trailerContainer = document.getElementById('trailerContainer');
+        document.getElementById('pageTitle').onclick = showMainView;
+        
+        let currentPage = 1, isLoading = false, currentGridEndpoint = '', currentGridMediaType = '', lastView = 'main';
+
+        // --- UTILITY FUNCTIONS ---
+        function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
+        const debouncedUpdateHero = debounce(updateHero, 300);
+        function updateHero(media) { if (media && media.backdrop_path) { heroSection.style.backgroundImage = `url('${TMDB_IMAGE_BASE_BACKDROP}${media.backdrop_path}')`; heroTitle.textContent = media.title || media.name; heroOverview.textContent = media.overview; } }
+
+        // --- VIEW MANAGEMENT ---
+        function showMainView() {
+            mainView.style.display = 'block';
+            gridView.style.display = 'none';
+            detailsView.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function showGridView(endpoint, title, mediaType) {
+            mainView.style.display = 'none';
+            gridView.style.display = 'block';
+            gridTitle.textContent = title;
+            contentGrid.innerHTML = '';
+            currentPage = 1;
+            currentGridEndpoint = endpoint;
+            currentGridMediaType = mediaType;
+            loadGridContent();
+        }
+        
+        function hideDetailsView() {
+            const iframe = detailsView.querySelector('iframe');
+            if (iframe) iframe.src = 'about:blank'; // Stop the video
+            detailsView.style.display = 'none';
+            if (lastView === 'grid') {
+                gridView.style.display = 'block';
+            } else {
+                showMainView();
+            }
+        }
+
+        async function showDetailsView(media) {
+            addToContinueWatching(media);
+            lastView = gridView.style.display === 'block' ? 'grid' : 'main';
+            mainView.style.display = 'none';
+            gridView.style.display = 'none';
+            detailsView.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            detailsView.innerHTML = '<div class="text-center p-20">Loading details...</div>';
+
+            try {
+                const detailsUrl = `${TMDB_API_BASE}/${media.media_type}/${media.id}?api_key=${TMDB_API_KEY}&append_to_response=credits,videos,external_ids`;
+                const res = await fetch(detailsUrl);
+                const details = await res.json();
+                
+                const title = details.title || details.name;
+                const backdropUrl = details.backdrop_path ? `${TMDB_IMAGE_BASE_BACKDROP}${details.backdrop_path}` : 'https://placehold.co/1920x1080/000000/000000?text=';
+                const trailer = details.videos.results.find(v => v.site === 'YouTube' && v.type === 'Trailer');
+                
+                detailsView.className = 'details-view fixed inset-0 z-50 overflow-y-auto';
+                detailsView.style.backgroundImage = `url(${backdropUrl})`;
+                
+                detailsView.innerHTML = `
+                    <div class="details-gradient absolute inset-0"></div>
+                    <div class="relative min-h-screen w-full mx-auto flex flex-col md:flex-row p-6 md:p-12 gap-8">
+                        <button id="backBtnDetails" class="absolute top-6 left-6 text-white bg-black/30 rounded-full p-2 hover:bg-red-600"><i data-lucide="arrow-left"></i></button>
+                        <div class="md:w-1/3 lg:w-1/4 pt-20 text-white flex-shrink-0">
+                             <h1 class="text-4xl lg:text-5xl font-extrabold">${title}</h1>
+                             <div class="flex items-center gap-4 mt-4 text-sm text-gray-400">
+                                <span>${details.runtime ? `${details.runtime} min` : `${details.number_of_seasons} Seasons`}</span>
+                                <span>${(details.release_date || details.first_air_date || '').split('-')[0]}</span>
+                                <span class="flex items-center gap-1"><i data-lucide="star" class="w-4 h-4 text-yellow-400 fill-current"></i> ${details.vote_average.toFixed(1)}</span>
+                             </div>
+                            ${trailer ? `<button id="playTrailerBtn" class="mt-6 flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-4 rounded-full transition-colors"><i data-lucide="play"></i> Play Trailer</button>` : ''}
+                            <div class="mt-6"><h3 class="font-bold text-gray-300">GENRES</h3><p class="text-sm text-gray-400">${details.genres.map(g => g.name).join(', ')}</p></div>
+                            <div class="mt-4"><h3 class="font-bold text-gray-300">SUMMARY</h3><p class="text-sm text-gray-400">${details.overview}</p></div>
+                            <div class="mt-4"><h3 class="font-bold text-gray-300">CAST</h3><p class="text-sm text-gray-400">${details.credits.cast.slice(0, 5).map(c => c.name).join(', ')}</p></div>
+                        </div>
+                        <div class="md:w-2/3 lg:w-3/4 flex flex-col pt-10">
+                            <div class="w-full aspect-video bg-black rounded-lg overflow-hidden">
+                                 <iframe id="details-player-iframe" allowfullscreen></iframe>
+                            </div>
+                            <div class="mt-4"><h3 class="font-bold text-gray-300 mb-2">SERVERS</h3><div id="details-server-list" class="flex flex-col gap-2 overflow-y-auto max-h-48 server-list pr-2"></div></div>
+                        </div>
+                    </div>`;
+
+                lucide.createIcons();
+                document.getElementById('backBtnDetails').onclick = hideDetailsView;
+                if (trailer) {
+                    document.getElementById('playTrailerBtn').onclick = () => playTrailer(trailer.key);
+                }
+                
+                const detailsServerList = document.getElementById('details-server-list');
+                const detailsPlayerIframe = document.getElementById('details-player-iframe');
+                const imdb_id = details.imdb_id || details.external_ids?.imdb_id;
+
+                
+                SERVERS.forEach((server) => {
+                    const id_to_use = server.id_type === 'imdb' ? imdb_id : media.id;
+                    if (!id_to_use) return;
+
+                    const item = document.createElement('button');
+                    item.className = 'server-item text-left w-full p-3 rounded-lg bg-gray-800/60 hover:bg-red-700 border-l-4 border-transparent transition-colors';
+                    item.innerHTML = `<span class="font-semibold">${server.name}</span>`;
+                    item.onclick = () => {
+                         let url = media.media_type === 'tv' ? (server.tvUrl || server.movieUrl).replace('{id}', id_to_use) : server.movieUrl.replace('{id}', id_to_use);
+                         detailsPlayerIframe.src = url;
+                         document.querySelectorAll('.server-item').forEach(el => el.classList.remove('active'));
+                         item.classList.add('active');
+                    };
+                    detailsServerList.appendChild(item);
+                });
+                
+                detailsServerList.querySelector('.server-item')?.click();
+
+            } catch (error) {
+                console.error("Error showing details:", error);
+                detailsView.innerHTML = `<div class="text-center p-20">Failed to load details. <button onclick="hideDetailsView()" class="text-red-500">Go Back</button></div>`;
+            }
+        }
+        
+        document.getElementById('backToMainBtn').onclick = showMainView;
+
+        // --- DATA LOADING & UI CREATION ---
+
+        async function loadGridContent() {
+            if (isLoading) return;
+            isLoading = true;
+            loadingIndicator.style.display = 'block';
+            try {
+                let url = `${TMDB_API_BASE}/${currentGridEndpoint}`;
+                if (url.includes('?')) {
+                    url += `&api_key=${TMDB_API_KEY}&page=${currentPage}`;
+                } else {
+                    url += `?api_key=${TMDB_API_KEY}&page=${currentPage}`;
+                }
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.results) {
+                    const results = data.results.map(item => ({...item, media_type: currentGridMediaType || item.media_type }));
+                    results.forEach(item => {
+                        if (!item.poster_path) return;
+                        const card = document.createElement('div');
+                        card.className = 'poster-card rounded-lg overflow-hidden bg-gray-800';
+                        card.innerHTML = `<img src="${TMDB_IMAGE_BASE_POSTER}${item.poster_path}" alt="${item.title || item.name}">`;
+                        card.onclick = () => showDetailsView(item);
+                        contentGrid.appendChild(card);
+                    });
+                    currentPage++;
+                }
+            } catch (error) { console.error("Error loading grid content:", error); } 
+            finally { isLoading = false; loadingIndicator.style.display = 'none'; }
+        }
+        
+        window.onscroll = () => { if (gridView.style.display === 'block' && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) { loadGridContent(); } };
+        async function fetchAndDisplay(endpoint, title, mediaType, excludeAnime = false) {
+            try {
+                let url = `${TMDB_API_BASE}/${endpoint}?api_key=${TMDB_API_KEY}&language=en-US&page=1`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.results && data.results.length > 0) {
+                     let contentResults = data.results.map(item => ({...item, media_type: mediaType}));
+                     if(excludeAnime) {
+                         contentResults = contentResults.filter(item => !item.genre_ids.includes(ANIMATION_GENRE_ID));
+                     }
+                     createMovieRow(title, contentResults, endpoint, mediaType);
+                     if (endpoint.includes('trending/movie')) {
+                         const heroItem = contentResults[0];
+                         if (heroItem && heroItem.backdrop_path) {
+                            heroSection.style.backgroundImage = `url('${TMDB_IMAGE_BASE_BACKDROP}${heroItem.backdrop_path}')`;
+                            heroTitle.textContent = heroItem.title || heroItem.name;
+                            heroOverview.textContent = heroItem.overview;
+                         }
+                     }
+                }
+            } catch (error) { console.error(`Error fetching ${title}:`, error); }
+        }
+        function createMovieRow(title, mediaItems, endpoint, mediaType, isPrepend = false) { const rowId = title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); const rowWrapper = document.createElement('div'); rowWrapper.id = rowId; rowWrapper.innerHTML = `<div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">${title}</h2>${endpoint ? `<button class="see-all-btn text-sm font-semibold text-gray-400 hover:text-red-500">See All &gt;</button>` : ''}</div><div class="relative"><div class="movie-carousel flex overflow-x-auto space-x-4 pb-4"></div></div>`; const carousel = rowWrapper.querySelector('.movie-carousel'); mediaItems.forEach(media => { if (!media.poster_path) return; const movieCard = document.createElement('div'); movieCard.className = 'poster-card flex-shrink-0 w-40 sm:w-44 md:w-48 bg-gray-800 rounded-lg overflow-hidden'; movieCard.innerHTML = `<img src="${TMDB_IMAGE_BASE_POSTER}${media.poster_path}" alt="${media.title || media.name}">`; movieCard.onclick = () => showDetailsView(media); movieCard.addEventListener('mouseenter', () => debouncedUpdateHero(media)); carousel.appendChild(movieCard); }); if(endpoint) { rowWrapper.querySelector('.see-all-btn').onclick = () => showGridView(endpoint, title, mediaType); } if(isPrepend) { movieRows.prepend(rowWrapper); } else { movieRows.appendChild(rowWrapper); }};
+        
+        // --- Continue Watching & Trailer ---
+        function getContinueWatching() { return JSON.parse(localStorage.getItem('streamflix-continue-watching') || '[]'); }
+        function addToContinueWatching(media) { let history = getContinueWatching(); history = history.filter(item => item.id !== media.id); history.unshift(media); if (history.length > 20) history = history.slice(0, 20); localStorage.setItem('streamflix-continue-watching', JSON.stringify(history)); }
+        function loadContinueWatching() { const history = getContinueWatching(); if (history.length > 0) { createMovieRow('Continue Watching', history, null, null, true); }}
+        function playTrailer(key) {
+            trailerContainer.innerHTML = `<iframe class="w-full h-full" src="https://www.youtube.com/embed/${key}?autoplay=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+            trailerModal.style.display = 'flex';
+        }
+        closeTrailerBtn.onclick = () => {
+            trailerModal.style.display = 'none';
+            trailerContainer.innerHTML = '';
+        };
+
+        // --- Navigation ---
+        function setupDropdowns() { const dropdowns = document.querySelectorAll('.dropdown'); dropdowns.forEach(dropdown => { const button = dropdown.querySelector('button'); const content = dropdown.querySelector('.dropdown-content'); button.addEventListener('click', (e) => { e.stopPropagation(); const isVisible = content.style.display === 'grid'; document.querySelectorAll('.dropdown-content').forEach(d => d.style.display = 'none'); if (!isVisible) content.style.display = 'grid'; }); }); const dropdownLinks = document.querySelectorAll('header .dropdown-content a'); dropdownLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); const endpoint = link.dataset.endpoint; const mediaType = link.dataset.type; const title = link.dataset.title; document.querySelectorAll('.dropdown-content').forEach(d => d.style.display = 'none'); showGridView(endpoint, title, mediaType); }); }); window.addEventListener('click', (e) => { if (!e.target.closest('.dropdown')) { document.querySelectorAll('.dropdown-content').forEach(d => d.style.display = 'none'); } }); }
+        async function buildGenreDropdown() { const dropdown = document.getElementById('genreDropdown'); try { const url = `${TMDB_API_BASE}/genre/movie/list?api_key=${TMDB_API_KEY}`; const res = await fetch(url); const data = await res.json(); const allGenres = [...data.genres, { id: 'tl', name: 'Tagalog' }, { id: 16, name: 'Anime' }]; allGenres.sort((a, b) => a.name.localeCompare(b.name)); dropdown.innerHTML = ''; allGenres.forEach(genre => { const link = document.createElement('a'); link.href = '#'; link.textContent = genre.name; link.className = "hover:text-red-500 transition-colors"; link.onclick = (e) => { e.preventDefault(); dropdown.style.display = 'none'; let endpoint, title, mediaType; if (genre.name === 'Anime') { endpoint = `discover/tv?with_genres=16`; title = `Anime Series`; mediaType = 'tv'; } else if (genre.id === 'tl') { endpoint = `discover/movie?with_original_language=tl`; title = `Tagalog Movies`; mediaType = 'movie'; } else { endpoint = `discover/movie?with_genres=${genre.id}`; title = `${genre.name} Movies`; mediaType = 'movie'; } showGridView(endpoint, title, mediaType); }; dropdown.appendChild(link); }); } catch(e) { dropdown.innerHTML = 'Could not load genres.'; } }
+        function setupMobileMenu() { const mobileNavLinks = document.getElementById('mobileNavLinks'); const nav = document.querySelector('header nav'); mobileNavLinks.innerHTML = nav.innerHTML; mobileMenuBtn.addEventListener('click', () => { mobileMenu.style.display = mobileMenu.style.display === 'block' ? 'none' : 'block'; }); mobileNavLinks.querySelectorAll('.dropdown > button').forEach(button => { button.addEventListener('click', e => { e.stopPropagation(); let content = button.nextElementSibling; content.style.display = content.style.display === 'grid' ? 'none' : 'grid'; }); }); mobileNavLinks.querySelectorAll('.dropdown-content a').forEach(link => { link.addEventListener('click', () => mobileMenu.style.display = 'none' ); }); }
+
+        function handleSearch(isMobile = false) {
+            const query = (isMobile ? mobileSearchInput : searchInput).value.trim();
+            if(!query) return;
+            if(isMobile) mobileMenu.style.display = 'none';
+            showGridView(`search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`, `Search results for "${query}"`, null);
+        }
+        searchBtn.addEventListener('click', () => handleSearch(false));
+        searchInput.addEventListener('keyup', e => e.key === 'Enter' && handleSearch(false));
+        mobileSearchInput.addEventListener('keyup', e => e.key === 'Enter' && handleSearch(true));
+
+        // --- INITIALIZATION ---
+        async function initializeApp() {
+             if (!TMDB_API_KEY) { return; }
+             showMainView();
+             setupDropdowns();
+             setupMobileMenu();
+             buildGenreDropdown();
+             movieRows.innerHTML = '';
+             loadContinueWatching();
+             await Promise.all([
+                 fetchAndDisplay('trending/movie/week', 'Trending Movies', 'movie', true),
+                 fetchAndDisplay('trending/tv/week', 'Trending Series', 'tv', true),
+                 fetchAndDisplay('movie/popular', 'Popular Movies', 'movie', true),
+                 fetchAndDisplay('tv/popular', 'Popular Series', 'tv', true),
+                 fetchAndDisplay('movie/now_playing', 'Newest Movies', 'movie', true),
+                 fetchAndDisplay('tv/on_the_air', 'Newest TV Series', 'tv', true),
+                 fetchAndDisplay('discover/tv?with_genres=16&sort_by=popularity.desc', 'Anime', 'tv')
+             ]);
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>
 

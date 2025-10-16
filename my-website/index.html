@@ -1,80 +1,177 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Website</title>
-  <link rel="stylesheet" href="css/home.css">
-  <script defer src="js/home.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamFlix - A New Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000; /* Pure black background */
+        }
+        header {
+            background-color: rgba(0,0,0,0.8); /* Adjusted for black theme */
+        }
+        #heroSection {
+            transition: background-image 0.5s ease-in-out;
+        }
+        .hero-gradient {
+            background-image: linear-gradient(to top, #000000, rgba(0,0,0, 0) 50%); /* Changed to black */
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1.5rem;
+        }
+        @media (min-width: 640px) {
+            .main-grid {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+        }
+        .poster-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+            aspect-ratio: 2/3; 
+        }
+        .poster-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+        }
+        .poster-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        .details-view {
+            background-color: #000000; /* Changed to black */
+            background-size: cover;
+            background-position: center top;
+            background-repeat: no-repeat;
+        }
+        .details-gradient {
+            background: linear-gradient(to right, #000000 20%, rgba(0,0,0, 0.8) 50%, rgba(0,0,0, 0) 100%); /* Changed to black */
+        }
+        .server-list {
+            scrollbar-width: thin;
+            scrollbar-color: #4A5568 #2D3748;
+        }
+        .server-list::-webkit-scrollbar { width: 8px; }
+        .server-list::-webkit-scrollbar-track { background: #2D3748; }
+        .server-list::-webkit-scrollbar-thumb { background-color: #4A5568; border-radius: 4px; }
+        .server-item.active { background-color: #e50914; border-left-color: #fff; }
+        .movie-carousel {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .movie-carousel::-webkit-scrollbar { display: none; }
+        
+        .dropdown-content {
+            display: none;
+            grid-template-columns: repeat(2, 1fr);
+        }
+    </style>
 </head>
-<body>
-  <div class="navbar">
-    <img src="logo.png" alt="LOGO HERE" />
-    <div class="nav-links">
-      <a href="index.html">Home</a>
-      <input type="text" class="search-bar" placeholder="Search..." onfocus="openSearchModal()" />
-    </div>
-  </div>
+<body class="text-gray-200">
 
-  <div class="banner" id="banner">
-    <h1 id="banner-title"></h1>
-  </div>
-
-  <div class="row">
-    <h2>Trending Movies</h2>
-    <div class="list" id="movies-list"></div>
-  </div>
-
-  <div class="row">
-    <h2>Trending TV Shows</h2>
-    <div class="list" id="tvshows-list"></div>
-  </div>
-
-  <div class="row">
-    <h2>Trending Anime</h2>
-    <div class="list" id="anime-list"></div>
-  </div>
-
-  <div class="modal" id="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeModal()" style="color: red;">&times;</span>
-      <div class="modal-body">
-        <img id="modal-image" src="" alt=""/>
-        <div class="modal-text">
-          <h2 id="modal-title"></h2>
-          <div class="stars" id="modal-rating"></div>
-          <p id="modal-description"></p>
+    <header class="p-4 md:p-6 sticky top-0 bg-black/80 backdrop-blur-sm z-30">
+        <div class="max-w-screen-2xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-8">
+                <h1 id="pageTitle" class="text-2xl md:text-3xl font-extrabold text-red-600 tracking-wider cursor-pointer">STREAMFLIX</h1>
+                <nav class="hidden md:flex items-center gap-6 text-white font-semibold">
+                    <!-- Movie Dropdown -->
+                    <div class="dropdown relative">
+                        <button class="flex items-center gap-1 hover:text-red-500"><span>Movie</span><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+                        <div class="dropdown-content absolute top-full mt-2 p-4 bg-gray-900/80 rounded-md shadow-lg w-96 gap-4">
+                           <a href="#" class="group" data-endpoint="movie/popular" data-type="movie" data-title="Popular Movies"><div class="font-bold group-hover:text-red-500">Popular</div><div class="text-xs text-gray-400">Most watched movies</div></a>
+                           <a href="#" class="group" data-endpoint="movie/top_rated" data-type="movie" data-title="Top Rated Movies"><div class="font-bold group-hover:text-red-500">Top Rated</div><div class="text-xs text-gray-400">Highest rated movies</div></a>
+                           <a href="#" class="group" data-endpoint="movie/upcoming" data-type="movie" data-title="Upcoming Movies"><div class="font-bold group-hover:text-red-500">Coming Soon</div><div class="text-xs text-gray-400">Upcoming releases</div></a>
+                        </div>
+                    </div>
+                     <!-- TV Show Dropdown -->
+                     <div class="dropdown relative">
+                        <button class="flex items-center gap-1 hover:text-red-500"><span>TV Show</span><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+                        <div class="dropdown-content absolute top-full mt-2 p-4 bg-gray-900/80 rounded-md shadow-lg w-96 gap-4">
+                           <a href="#" class="group" data-endpoint="tv/popular" data-type="tv" data-title="Popular TV Shows"><div class="font-bold group-hover:text-red-500">Popular</div><div class="text-xs text-gray-400">Most watched series</div></a>
+                           <a href="#" class="group" data-endpoint="tv/top_rated" data-type="tv" data-title="Top Rated TV Shows"><div class="font-bold group-hover:text-red-500">Top Rated</div><div class="text-xs text-gray-400">Highest rated series</div></a>
+                           <a href="#" class="group" data-endpoint="tv/on_the_air" data-type="tv" data-title="On The Air"><div class="font-bold group-hover:text-red-500">On The Air</div><div class="text-xs text-gray-400">Currently airing</div></a>
+                        </div>
+                    </div>
+                    <!-- Genre Dropdown -->
+                    <div class="dropdown relative">
+                        <button class="flex items-center gap-1 hover:text-red-500"><span>Genre</span><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+                        <div id="genreDropdown" class="dropdown-content absolute top-full mt-2 p-4 bg-gray-900/80 rounded-md shadow-lg w-96 gap-2 text-sm"></div>
+                    </div>
+                </nav>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="hidden md:flex items-center gap-4 bg-gray-900/50 border border-gray-700 rounded-full px-3 py-1.5">
+                    <input type="text" id="searchInput" placeholder="Search..." class="bg-transparent text-white placeholder-gray-400 focus:outline-none w-32 sm:w-48">
+                    <button id="searchBtn"><i data-lucide="search" class="w-5 h-5 text-gray-400 hover:text-white"></i></button>
+                </div>
+                <button id="mobileMenuBtn" class="md:hidden text-white"><i data-lucide="menu" class="w-6 h-6"></i></button>
+            </div>
         </div>
-      </div>
+    </header>
 
-      <div class="server-selector">
-        <label for="server">Change Server:</label>
-        <select id="server" onchange="changeServer()">
-          <option value="vidsrc.cc">Vidsrc.cc</option>
-          <option value="vidsrc.me">Vidsrc.me</option>
-          <option value="player.videasy.net">Player.Videasy.net</option>
-          <option value="realdebrid">Real-Debrid</option>
-        </select>
-      </div>
-      <iframe id="modal-video" width="100%" height="315" frameborder="0" allowfullscreen></iframe>
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="hidden fixed inset-0 bg-black/95 z-40 p-6 pt-24 text-white text-lg font-semibold">
+        <div class="flex items-center justify-center mb-6">
+             <input type="text" id="mobileSearchInput" placeholder="Search..." class="bg-gray-800 border border-gray-700 rounded-full px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-red-500">
+        </div>
+        <nav id="mobileNavLinks" class="flex flex-col gap-4"></nav>
     </div>
-  </div>
 
-  <div class="search-modal" id="search-modal">
-    <span class="close" onclick="closeSearchModal()" style="color: red;">&times;</span>
-    <input type="text" id="search-input" placeholder="Search for a movie or show..." oninput="searchTMDB()" />
-    <div class="results" id="search-results"></div>
-  </div>
-
-  <footer class="footer">
-    <div class="footer-content">
-      <p>&copy; 2025 My Website. All rights reserved.</p>
-      <div class="footer-links">
-        <a href="#">Disclaimer</a>
-        <a href="#">About Us</a>
-        <a href="#">Contact Us</a>
-      </div>
+    <!-- Main Views -->
+    <div id="mainView">
+        <main>
+            <section id="heroSection" class="relative h-[50vh] md:h-[60vh] flex items-end text-white p-6 md:p-12" style="background-image: url('https://placehold.co/1920x1080/000000/000000?text='); background-size: cover; background-position: center top;">
+                 <div class="absolute inset-0 hero-gradient"></div>
+                 <div class="relative z-10 max-w-xl lg:max-w-3xl">
+                    <h2 id="heroTitle" class="text-4xl md:text-6xl font-extrabold drop-shadow-lg">Loading...</h2>
+                    <p id="heroOverview" class="mt-4 text-sm md:text-base max-w-prose drop-shadow-md"></p>
+                </div>
+            </section>
+            <div id="movieRows" class="space-y-12 py-8 px-4 md:px-6 max-w-screen-2xl mx-auto"></div>
+        </main>
     </div>
-  </footer>
-</body>
-</html>
+    <div id="gridView" class="hidden">
+        <main class="p-4 md:p-6 max-w-screen-2xl mx-auto min-h-screen">
+            <button id="backToMainBtn" class="flex items-center gap-2 mb-6 font-semibold hover:text-red-500"><i data-lucide="arrow-left"></i> Back to Home</button>
+            <h2 id="gridTitle" class="text-3xl font-bold mb-6"></h2>
+            <div id="contentGrid" class="main-grid"></div>
+            <div id="loadingIndicator" class="text-center py-10">Loading more...</div>
+        </main>
+    </div>
+    <div id="detailsView" class="hidden fixed inset-0 z-50 overflow-y-auto"></div>
+
+    <!-- Trailer Modal -->
+    <div id="trailerModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-4xl">
+            <button id="closeTrailerBtn" class="absolute -top-10 right-0 text-white hover:text-red-500"><i data-lucide="x" class="w-8 h-8"></i></button>
+            <div id="trailerContainer" class="aspect-video"></div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // --- CONFIGURATION ---
+        const TMDB_API_KEY = 'a1e72fd93ed59f56e6332813b9f8dcae';
+        const SERVERS = [
+            { name: "VidSrc.to", id_type: 'tmdb', movieUrl: "https://vidsrc.to/embed/movie/{id}", tvUrl: "https://vidsrc.to/embed/tv/{id}" },
+            { name: "VidSrc.pro", id_type: 'tmdb', movieUrl: "https://vidsrc.pro/embed/movie/{id}", tvUrl: "https://vidsrc.pro/embed/tv/{id}" },
+            { name: "MoviesAPI", id_type: 'imdb', movieUrl: "https://moviesapi.to/movie/{id}", tvUrl: "https://moviesapi.to/tv/{id}" },
+            { name: "2Embed.to", id_type: 'tmdb', movieUrl: "https://www.2embed.to/embed/tmdb/movie?id={id}", tvUrl: "https://www.2embed.to/embed/tmdb/tv?id={id}&s=1&e=1" }
+        ];
+        const ANIMATION_GENRE_ID = 16;
+
+        // --- CONSTANTS ---
+        const TMDB_API_BASE = 'https://api.themoviedb.org/3';
+        const TMDB_IMAGE
+
